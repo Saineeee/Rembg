@@ -50,7 +50,6 @@ class BackgroundRemoverCog(commands.Cog):
         
         if smooth_edges:
             # Apply Alpha Matting for smoother edges
-            # These thresholds control how aggressive the smoothing is
             return remove(
                 image_bytes, 
                 session=session,
@@ -63,7 +62,8 @@ class BackgroundRemoverCog(commands.Cog):
             # Standard hard-edge removal
             return remove(image_bytes, session=session)
 
-    @app_commands.command(name="removebg", description="Removes the background from an uploaded image.")
+    # UPDATED COMMAND NAME HERE
+    @app_commands.command(name="rembg", description="Removes the background from an uploaded image.")
     @app_commands.describe(
         image="The image you want to remove the background from",
         subject_type="What is in the image? (Helps pick the best AI model)",
@@ -79,7 +79,7 @@ class BackgroundRemoverCog(commands.Cog):
         interaction: discord.Interaction, 
         image: discord.Attachment, 
         subject_type: app_commands.Choice[str],
-        smooth_edges: bool = False  # Defaults to False if the user skips this option
+        smooth_edges: bool = False
     ):
         
         # Validate that the file is actually an image
