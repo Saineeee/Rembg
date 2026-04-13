@@ -44,28 +44,42 @@ class BackgroundRemoverCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # Helper function to run the AI process
-    def process_image(self, image_bytes: bytes, model_name: str) -> bytes:
-        # new_session loads the specific AI model chosen by the user
+    # Helper function to run the AI process with optional Alpha Matting
+    def process_image(self, image_bytes: bytes, model_name: str, smooth_edges: bool) -> bytes:
         session = new_session(model_name)
-        return remove(image_bytes, session=session)
+        
+        if smooth_edges:
+            # Apply Alpha Matting for smoother edges
+            # These thresholds control how aggressive the smoothing is
+            return remove(
+                image_bytes, 
+                session=session,
+                alpha_matting=True,
+                alpha_matting_foreground_threshold=240,
+                alpha_matting_background_threshold=10,
+                alpha_matting_erode_size=10
+            )
+        else:
+            # Standard hard-edge removal
+            return remove(image_bytes, session=session)
 
     @app_commands.command(name="removebg", description="Removes the background from an uploaded image.")
     @app_commands.describe(
         image="The image you want to remove the background from",
-        subject_type="What is in the image? (Helps pick the best AI model)"
+        subject_type="What is in the image? (Helps pick the best AI model)",
+        smooth_edges="Enable Alpha Matting to smooth jagged edges? (Slightly slower)"
     )
-    # This creates the drop-down menu in Discord!
     @app_commands.choices(subject_type=[
-        app_commands.Choice(name="👤 Person / Complex", value="u2net"),
-        app_commands.Choice(name="📦 Object / Simple", value="u2netp"),
+        app_commands.Choice(name="🧑 Person / Complex (High Quality)", value="u2net"),
+        app_commands.Choice(name="📦 Object / Simple (Fast)", value="u2netp"),
         app_commands.Choice(name="🎨 Anime / Illustration", value="isnet-anime")
     ])
     async def remove_background(
         self, 
         interaction: discord.Interaction, 
         image: discord.Attachment, 
-        subject_type: app_commands.Choice[str]
+        subject_type: app_commands.Choice[str],
+        smooth_edges: bool = False  # Defaults to False if the user skips this option
     ):
         
         # Validate that the file is actually an image
@@ -77,22 +91,24 @@ class BackgroundRemoverCog(commands.Cog):
         await interaction.response.defer(thinking=True)
 
         try:
-            # Check which model the user selected from the dropdown
             selected_model = subject_type.value
-            logger.info(f"Processing image with model '{selected_model}' for {interaction.user}")
+            logger.info(f"Processing image with model '{selected_model}' | Smoothing: {smooth_edges} | User: {interaction.user}")
             
             image_bytes = await image.read()
 
-            # Pass the image and the chosen model name to the background thread
-            output_bytes = await asyncio.to_thread(self.process_image, image_bytes, selected_model)
+            # Pass the image, chosen model, and smoothing preference to the background thread
+            output_bytes = await asyncio.to_thread(self.process_image, image_bytes, selected_model, smooth_edges)
 
             with io.BytesIO(output_bytes) as image_file:
                 discord_file = discord.File(fp=image_file, filename=f"nobg_{image.filename}.png")
                 
-                await interaction.followup.send(
-                    content=f"✨ Background removed using the **{subject_type.name}** model, {interaction.user.mention}!", 
-                    file=discord_file
-                )
+                # Format the success message dynamically
+                msg = f"✨ Background removed using the **{subject_type.name}** model"
+                if smooth_edges:
+                    msg += " *(with edge smoothing)*"
+                msg += f", {interaction.user.mention}!"
+
+                await interaction.followup.send(content=msg, file=discord_file)
             
         except Exception as e:
             logger.error(f"Error processing image for {interaction.user}: {str(e)}", exc_info=True)
