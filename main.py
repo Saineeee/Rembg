@@ -2,6 +2,7 @@ import os
 import io
 import logging
 import asyncio
+import gc
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -46,6 +47,9 @@ class BackgroundRemoverCog(commands.Cog):
 
     # Helper function to run the AI process with optional Alpha Matting
     def process_image(self, image_bytes: bytes, model_name: str, smooth_edges: bool) -> bytes:
+        # Force garbage collection to free up any stray RAM before loading the model
+        gc.collect()
+        
         session = new_session(model_name)
         
         if smooth_edges:
@@ -62,17 +66,18 @@ class BackgroundRemoverCog(commands.Cog):
             # Standard hard-edge removal
             return remove(image_bytes, session=session)
 
-    # UPDATED COMMAND NAME HERE
-    @app_commands.command(name="rembg", description="Removes the background from an uploaded image.")
+    @app_commands.command(name="removebg", description="Removes the background from an uploaded image.")
     @app_commands.describe(
         image="The image you want to remove the background from",
         subject_type="What is in the image? (Helps pick the best AI model)",
         smooth_edges="Enable Alpha Matting to smooth jagged edges? (Slightly slower)"
     )
+    # UPDATED CHOICES MENU
     @app_commands.choices(subject_type=[
         app_commands.Choice(name="🧑 Person / Complex (High Quality)", value="u2net"),
         app_commands.Choice(name="📦 Object / Simple (Fast)", value="u2netp"),
-        app_commands.Choice(name="🎨 Anime / Illustration", value="isnet-anime")
+        app_commands.Choice(name="🎨 Anime / Illustration (Heavy/Best)", value="isnet-anime"),
+        app_commands.Choice(name="⚡ Anime / Illustration (Fast/Stable)", value="silueta")
     ])
     async def remove_background(
         self, 
@@ -87,7 +92,7 @@ class BackgroundRemoverCog(commands.Cog):
             await interaction.response.send_message("⚠️ Please provide a valid image file (PNG, JPG, etc.).", ephemeral=True)
             return
 
-        # Defer response to prevent timeout
+        # Defer response to prevent timeout while the AI downloads models or processes
         await interaction.response.defer(thinking=True)
 
         try:
@@ -112,7 +117,7 @@ class BackgroundRemoverCog(commands.Cog):
             
         except Exception as e:
             logger.error(f"Error processing image for {interaction.user}: {str(e)}", exc_info=True)
-            await interaction.followup.send("❌ An error occurred while processing your image.", ephemeral=True)
+            await interaction.followup.send("❌ An error occurred while processing your image. If the bot restarted, the image was too heavy for the server's RAM.", ephemeral=True)
 
 # --- 5. Run the Bot ---
 if __name__ == "__main__":
