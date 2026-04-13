@@ -6,10 +6,9 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from dotenv import load_dotenv
-from rembg import remove
+from rembg import remove, new_session
 
 # --- 1. Setup Logging ---
-# This logs errors and info to the console with timestamps, essential for debugging in production.
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -27,14 +26,10 @@ if not TOKEN:
 # --- 3. Define the Bot Class ---
 class BackgroundBot(commands.Bot):
     def __init__(self):
-        # We don't need message content intent anymore since we use Slash Commands
         super().__init__(command_prefix="!", intents=discord.Intents.default())
 
     async def setup_hook(self):
-        # Add the background removal cog (module) to the bot
         await self.add_cog(BackgroundRemoverCog(self))
-        
-        # Sync slash commands with Discord globally
         try:
             synced = await self.tree.sync()
             logger.info(f"Successfully synced {len(synced)} command(s).")
@@ -49,46 +44,62 @@ class BackgroundRemoverCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # This defines the /removebg slash command
+    # Helper function to run the AI process
+    def process_image(self, image_bytes: bytes, model_name: str) -> bytes:
+        # new_session loads the specific AI model chosen by the user
+        session = new_session(model_name)
+        return remove(image_bytes, session=session)
+
     @app_commands.command(name="removebg", description="Removes the background from an uploaded image.")
-    @app_commands.describe(image="The image you want to remove the background from")
-    async def remove_background(self, interaction: discord.Interaction, image: discord.Attachment):
+    @app_commands.describe(
+        image="The image you want to remove the background from",
+        subject_type="What is in the image? (Helps pick the best AI model)"
+    )
+    # This creates the drop-down menu in Discord!
+    @app_commands.choices(subject_type=[
+        app_commands.Choice(name="👤 Person / Complex", value="u2net"),
+        app_commands.Choice(name="📦 Object / Simple", value="u2netp"),
+        app_commands.Choice(name="🎨 Anime / Illustration", value="isnet-anime")
+    ])
+    async def remove_background(
+        self, 
+        interaction: discord.Interaction, 
+        image: discord.Attachment, 
+        subject_type: app_commands.Choice[str]
+    ):
         
         # Validate that the file is actually an image
         if not image.content_type or not image.content_type.startswith('image/'):
             await interaction.response.send_message("⚠️ Please provide a valid image file (PNG, JPG, etc.).", ephemeral=True)
             return
 
-        # Defer the response. This prevents the 3-second timeout error while the AI processes.
-        # "thinking=True" shows "Bot is thinking..." in Discord.
+        # Defer response to prevent timeout
         await interaction.response.defer(thinking=True)
 
         try:
-            logger.info(f"Processing image from {interaction.user} in server {interaction.guild.name if interaction.guild else 'DMs'}")
+            # Check which model the user selected from the dropdown
+            selected_model = subject_type.value
+            logger.info(f"Processing image with model '{selected_model}' for {interaction.user}")
             
-            # Download the image bytes into memory
             image_bytes = await image.read()
 
-            # Offload the heavy AI processing to a separate thread so the bot doesn't freeze
-            output_bytes = await asyncio.to_thread(remove, image_bytes)
+            # Pass the image and the chosen model name to the background thread
+            output_bytes = await asyncio.to_thread(self.process_image, image_bytes, selected_model)
 
-            # Convert the raw bytes back into a file object for Discord
             with io.BytesIO(output_bytes) as image_file:
                 discord_file = discord.File(fp=image_file, filename=f"nobg_{image.filename}.png")
                 
-                # Send the final result as a follow-up to the deferred interaction
                 await interaction.followup.send(
-                    content=f"✨ Background removed successfully, {interaction.user.mention}!", 
+                    content=f"✨ Background removed using the **{subject_type.name}** model, {interaction.user.mention}!", 
                     file=discord_file
                 )
             
-            logger.info(f"Successfully processed and sent image for {interaction.user}")
-
         except Exception as e:
             logger.error(f"Error processing image for {interaction.user}: {str(e)}", exc_info=True)
-            await interaction.followup.send("❌ An error occurred while processing your image. It might be too large or complex.", ephemeral=True)
+            await interaction.followup.send("❌ An error occurred while processing your image.", ephemeral=True)
 
 # --- 5. Run the Bot ---
 if __name__ == "__main__":
     bot = BackgroundBot()
-    bot.run(TOKEN, log_handler=None) # We set log_handler=None to use our custom logging setup above
+    bot.run(TOKEN, log_handler=None)
+    
