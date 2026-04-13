@@ -85,10 +85,9 @@ class BackgroundRemoverCog(commands.Cog):
     )
     # The drop-down menu choices
     @app_commands.choices(subject_type=[
-        app_commands.Choice(name="🧑 Person / Complex (High Quality)", value="u2net"),
-        app_commands.Choice(name="📦 Object / Simple (Fast)", value="u2netp"),
-        app_commands.Choice(name="🎨 Anime / Illustration (Heavy/Best)", value="isnet-anime"),
-        app_commands.Choice(name="⚡ Anime / Illustration (Fast/Stable)", value="silueta")
+        app_commands.Choice(name="🧑 Person / Complex", value="u2net"),
+        app_commands.Choice(name="📦 Object / Simple", value="u2netp"),
+        app_commands.Choice(name="🎨 Anime / Illustration", value="isnet-anime"),
     ])
     async def remove_background(
         self, 
