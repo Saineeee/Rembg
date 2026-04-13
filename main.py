@@ -32,6 +32,7 @@ class BackgroundBot(commands.Bot):
     async def setup_hook(self):
         await self.add_cog(BackgroundRemoverCog(self))
         try:
+            # Sync slash commands with Discord globally
             synced = await self.tree.sync()
             logger.info(f"Successfully synced {len(synced)} command(s).")
         except Exception as e:
@@ -45,16 +46,18 @@ class BackgroundRemoverCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # Helper function to run the AI process with optional Alpha Matting
+    # Helper function to run the AI process with aggressive memory management
     def process_image(self, image_bytes: bytes, model_name: str, smooth_edges: bool) -> bytes:
-        # Force garbage collection to free up any stray RAM before loading the model
+        # 1. Clear RAM BEFORE starting
         gc.collect()
         
+        # 2. Load the specific AI model chosen by the user
         session = new_session(model_name)
         
+        # 3. Process the image
         if smooth_edges:
             # Apply Alpha Matting for smoother edges
-            return remove(
+            output_bytes = remove(
                 image_bytes, 
                 session=session,
                 alpha_matting=True,
@@ -64,7 +67,15 @@ class BackgroundRemoverCog(commands.Cog):
             )
         else:
             # Standard hard-edge removal
-            return remove(image_bytes, session=session)
+            output_bytes = remove(image_bytes, session=session)
+
+        # 4. Explicitly destroy the AI session to free up the 40MB-176MB it was using
+        del session 
+
+        # 5. Clear RAM AFTER finishing
+        gc.collect()
+        
+        return output_bytes
 
     @app_commands.command(name="removebg", description="Removes the background from an uploaded image.")
     @app_commands.describe(
@@ -72,7 +83,7 @@ class BackgroundRemoverCog(commands.Cog):
         subject_type="What is in the image? (Helps pick the best AI model)",
         smooth_edges="Enable Alpha Matting to smooth jagged edges? (Slightly slower)"
     )
-    # UPDATED CHOICES MENU
+    # The drop-down menu choices
     @app_commands.choices(subject_type=[
         app_commands.Choice(name="🧑 Person / Complex (High Quality)", value="u2net"),
         app_commands.Choice(name="📦 Object / Simple (Fast)", value="u2netp"),
@@ -92,18 +103,20 @@ class BackgroundRemoverCog(commands.Cog):
             await interaction.response.send_message("⚠️ Please provide a valid image file (PNG, JPG, etc.).", ephemeral=True)
             return
 
-        # Defer response to prevent timeout while the AI downloads models or processes
+        # Defer response to prevent Discord's 3-second timeout error
         await interaction.response.defer(thinking=True)
 
         try:
             selected_model = subject_type.value
             logger.info(f"Processing image with model '{selected_model}' | Smoothing: {smooth_edges} | User: {interaction.user}")
             
+            # Download the image into memory
             image_bytes = await image.read()
 
             # Pass the image, chosen model, and smoothing preference to the background thread
             output_bytes = await asyncio.to_thread(self.process_image, image_bytes, selected_model, smooth_edges)
 
+            # Package the processed bytes back into a Discord file
             with io.BytesIO(output_bytes) as image_file:
                 discord_file = discord.File(fp=image_file, filename=f"nobg_{image.filename}.png")
                 
@@ -113,6 +126,7 @@ class BackgroundRemoverCog(commands.Cog):
                     msg += " *(with edge smoothing)*"
                 msg += f", {interaction.user.mention}!"
 
+                # Send the final result
                 await interaction.followup.send(content=msg, file=discord_file)
             
         except Exception as e:
