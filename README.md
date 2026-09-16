@@ -1,4 +1,4 @@
-# Rembg — Discord Background Removal Bot
+# *Rembg* Discord Background Removal Bot
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python&logoColor=white)
 ![discord.py](https://img.shields.io/badge/discord.py-2.3.2%2B-5865F2?logo=discord&logoColor=white)
@@ -116,9 +116,9 @@ The bot does **not** expose every model `rembg` supports. Three are pre-wired in
 
 | Choice in Discord        | `rembg` model  | Typical RAM | Best for                                      | Notes                                                     |
 |--------------------------|----------------|-------------|-----------------------------------------------|-----------------------------------------------------------|
-| 🧑 **Person / Complex**  | `u2net`        | ~176 MB     | Portraits, photos with hair, busy backgrounds | Highest quality, slowest of the three                     |
-| 📦 **Object / Simple**   | `u2netp`       | ~40 MB      | Product shots, isolated objects, simple scenes| Lightweight variant of `u2net`, ~4× faster                |
-| 🎨 **Anime / Illustration** | `isnet-anime`| ~80 MB      | Drawings, anime, flat-color art               | Trained specifically on illustration data, not photos     |
+| ℹ️**Person / Complex**  | `u2net`        | ~176 MB     | Portraits, photos with hair, busy backgrounds | Highest quality, slowest of the three                     |
+| ℹ️**Object / Simple**   | `u2netp`       | ~40 MB      | Product shots, isolated objects, simple scenes| Lightweight variant of `u2net`, ~4× faster                |
+| ℹ️**Anime / Illustration** | `isnet-anime`| ~80 MB      | Drawings, anime, flat-color art               | Trained specifically on illustration data, not photos     |
 
 ### Edge smoothing (Alpha Matting)
 
