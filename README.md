@@ -1,4 +1,4 @@
-# 🪄 Rembg Discord Bot
+# Rembg Discord Bot
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python&logoColor=white)
 ![discord.py](https://img.shields.io/badge/discord.py-2.3.2%2B-5865F2?logo=discord&logoColor=white)
@@ -10,21 +10,6 @@ A friendly little Discord bot that removes the background from any image you upl
 Under the hood it's powered by [`rembg`](https://github.com/danielgatis/rembg), a popular open-source ML library for background removal, and carefully tuned to squeeze into small free-tier servers through aggressive memory management.
 
 > ⚠️ **Heads up!** This is **not** the `rembg` Python library itself — it's a Discord bot *wrapper* around it. If you're looking for the CLI tool or Python API, head over to [danielgatis/rembg](https://github.com/danielgatis/rembg) instead.
-
----
-
-## 📑 Table of Contents
-
-- [✨ Features](#-features)
-- [🚀 Quickstart](#-quickstart)
-- [🎮 Using the Bot](#-using-the-bot)
-- [🧠 Models](#-models)
-- [⚙️ How It Works](#️-how-it-works)
-- [☁️ Deployment](#-deployment)
-- [❓ FAQ](#-faq)
-- [🤝 Contributing](#-contributing)
-- [📁 Project Structure](#-project-structure)
-- [📜 License](#-license)
 
 ---
 
@@ -271,7 +256,7 @@ Rembg/
 └── README.md           # You are here 🙂
 ```
 
-No package layout, no tests directory, no config module — on purpose. The bot does one thing, and the whole implementation fits on one screen.
+No package layout, no tests directory, no config module, on purpose. The bot does one thing, and the whole implementation fits on one screen. this long ass readme is for complete info.
 
 ---
 
